@@ -21,8 +21,8 @@ LoRa mesh notification system for music festivals. Phone at camp pushes act-star
 festival-pager/
   PLAN.md          # Implementation plan (10 tasks)
   STATUS.md        # This file
-  notifier.py      # Python notification script (to be created)
-  schedule.json    # Festival schedule data (to be created)
+  notifier.py      # Python notification script
+  schedule.json    # Example festival schedule
   case/            # 3D printed case designs (STL files)
 ```
 
@@ -74,3 +74,5 @@ open "https://flasher.meshtastic.org/"
 meshtastic scan  # list nearby nodes
 meshtastic send "test"  # send a test message
 ```
+
+  config.json      # Meshtastic node URL, schedule path, intervals
