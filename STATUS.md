@@ -40,36 +40,16 @@ festival-pager/
 4. Position relay nodes at strategic festival locations
 5. Pager receives messages automatically via LoRa mesh
 
-## Slice Progress
-
-- [x] **Slice 1:** Data Model + Schedule Ingestion — models.py, schedule.json
-- [x] **Slice 2:** Meshtastic Connection + DM Listener — listener.py (stub)
-- [x] **Slice 3:** DM Command Parser — command routing in listener.py
-- [x] **Slice 4:** Notifier Loop — notifier.py
-- [x] **Slice 5:** Web UI — webui.py (pending, route spec defined)
-- [x] **Slice 6 (this session):** Systemd Service + WiFi Hotspot
-
-## Deploy Files (Slice 6)
-
-| File | Destination on Pi | Purpose |
-|------|-------------------|---------|
-| `deploy/festival-pager.service` | `/etc/systemd/system/` | systemd unit for notifier + web UI |
-| `deploy/run.sh` | `/home/pi/festival-pager/deploy/` | Wrapper: starts notifier (bg) + web UI (fg) |
-| `deploy/hostapd.conf` | `/etc/hostapd/hostapd.conf` | AR9271 open WiFi hotspot, SSID "Festival Pager" |
-| `deploy/dnsmasq.conf` | `/etc/dnsmasq.d/festival-pager.conf` | DHCP 10.0.0.10-100, DNS captive portal |
-| `deploy/wlan0.network` | `/etc/network/interfaces.d/wlan0` | Static IP 10.0.0.1/24 (ifupdown fallback) |
-| `setup.sh` | project root | One-shot setup: apt deps, venv, copy configs, enable services |
-
 ## Outstanding Items
 - [ ] Purchase Heltec Wireless Paper HF (EU868)
 - [ ] Purchase LiPo battery 3.7V 500mAh
 - [ ] Flash Meshtastic onto Wireless Paper (pager node)
 - [ ] Flash Meshtastic onto T3S3 (relay node)
 - [ ] Test mesh communication between devices
+- [ ] Write and test notifier.py with real Meshtastic HTTP API
 - [ ] Get festival schedule data (JSON format)
 - [ ] Design and 3D print wrist case
 - [ ] Assemble and test end-to-end at a local event
-- [ ] Test deploy flow on actual Pi Zero with AR9271 + T3S3
 
 ## Gotchas
 - Meshtastic user text payload limited to ~57 bytes — act names must be truncated
