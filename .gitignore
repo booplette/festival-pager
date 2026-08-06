@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# 3D print files
+*.stl
+*.3mf
+*.step
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Meshtastic firmware (if building locally)
+meshtastic-firmware/
+.firmware/
+
+# Secrets
+.env
+*.key
