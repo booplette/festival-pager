@@ -1,0 +1,6 @@
+{
+  "meshtastic_url": "http://192.168.1.100",
+  "schedule_file": "schedule.json",
+  "headline_minutes": 15,
+  "check_interval": 60
+}
