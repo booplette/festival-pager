@@ -100,6 +100,19 @@ class Pin:
     claimed_by: str      # node ID, once DM received
 ```
 
+**Challenge data model** (ephemeral, in-memory + `challenges.json`, expire 5 min):
+
+```python
+@dataclass
+class Challenge:
+    id: str              # short id for polling
+    node_id: str         # claimed node ID "!a1b2c3d4"
+    code: str            # "GOAT42" — short, memorable, easy to read on e-ink
+    created: float       # time.time()
+    verified: bool       # True once DM received or code entered on web UI
+    session_id: str      # browser session that initiated it
+```
+
 **Why this slice first:** Everything else depends on the data model. Getting this
 right early means the other slices just import and use it.
 
@@ -170,10 +183,11 @@ the system without WiFi. Must be solid before anything else.
 | DM | Effect | Reply DM |
 |----|--------|----------|
 | `sub XXXXXX` | Bind node to PIN + activate | ✅ Subscribed! Set your preferences at http://10.0.0.1 |
+| `verify XXXXXX` | Confirm node ownership (challenge-response) | ✅ Verified! Set your preferences at http://10.0.0.1 |
 | `unsub` | `active=false`, keep prefs | ✅ Unsubscribed. Send `sub` anytime to re-activate. |
 | `list` | Next 3 acts as DM | 📋 Next: Bob Vylan 20:00 Main, Goat 21:30 Main, BCUC 19:00 Dance |
 
-**PIN flow:**
+**PIN flow (standard — user has keyboard):**
 ```
 User connects to WiFi hotspot (10.0.0.1)
   → Captive portal shows PIN "731294"
@@ -183,6 +197,24 @@ User connects to WiFi hotspot (10.0.0.1)
   → PIN consumed, subscriber created/activated
   → Reply DM: ✅ Subscribed! Open http://10.0.0.1 to pick your acts
 ```
+
+**Challenge-response flow (no keyboard — e-ink / Wireless Paper users):**
+```
+User connects to WiFi hotspot (10.0.0.1)
+  → Captive portal offers "No keyboard? Enter your node ID"
+  → User types their node ID from their device screen (e.g. "!a1b2c3d4")
+  → Server sends DM to that node: "Your code: GOAT42 — reply: verify GOAT42"
+  → User reads DM on e-ink screen, types code "GOAT42" on web UI
+  → Server verifies: DM sent to that node + code matches → binds session
+  → OR user reads code and DMs "verify GOAT42" from their device instead
+  → Subscriber created/activated, redirected to /schedule
+```
+
+The server generates a short memorable word code (e.g. `GOAT42`, `BEAN23`, `BASS19`)
+so it's easy to read from a small e-ink screen. The code expires in 5 minutes.
+The user can either:
+  (a) Type the code on the web UI (if the page is still open)
+  (b) DM `verify GOAT42` from their device (if they can send one message)
 
 **Test:**
 ```python
@@ -279,29 +311,65 @@ n.tick()  # Manually trigger one check
 **Route design:**
 
 ```
-GET  /               → Captive portal (shows PIN, polls for claim)
-GET  /schedule       → Schedule with checkboxes (requires node_id in session)
-POST /schedule       → Save preferences
-GET  /dashboard      → Sub count, next acts, recent sends
-GET  /subscribers    → List of subscribers with edit/remove
-POST /subscribers    → Add subscriber manually
-GET  /send           → Manual push form
-POST /send           → Execute manual push
-GET  /status         → System health
-GET  /api/pin        → Generate + return new PIN (JSON)
-GET  /api/pin/status → Check if PIN claimed (JSON)
+GET  /                    Captive portal — shows PIN + "no keyboard" option
+GET  /api/pin             Generate + return new PIN (JSON)
+GET  /api/pin/status      Check if PIN claimed (JSON)
+POST /api/challenge       Initiate challenge-response (body: node_id)
+GET  /api/challenge/:id   Check if challenge verified (JSON)
+POST /api/verify          Submit challenge code from web UI (body: code)
+GET  /schedule            Full schedule with checkboxes (requires session)
+POST /schedule            Save preferences
+GET  /dashboard           Sub count, next acts, recent sends
+GET  /subscribers         List with edit/remove
+POST /subscribers         Add subscriber manually
+GET  /send                Manual push form
+POST /send                Execute manual push
+GET  /status              System health
 ```
 
 **Captive portal page (`/`):**
 
 ```html
 <h1>🎪 Festival Pager</h1>
-<p>Your PIN: <strong>731294</strong></p>
-<p>Send a DM from Meshtastic: <code>sub 731294</code></p>
-<div id="status">⏳ Waiting...</div>
+
+<!-- Path A: standard PIN auth -->
+<div id="pin-auth">
+  <h2>Have a keyboard on your Meshtastic device?</h2>
+  <p>Your PIN: <strong>731294</strong></p>
+  <p>Send a DM from your device: <code>sub 731294</code></p>
+  <div id="status">⏳ Waiting for DM...</div>
+</div>
+
+<hr>
+
+<!-- Path B: no-keyboard challenge-response -->
+<div id="nokb-auth">
+  <h2>No keyboard? No problem.</h2>
+  <p>Enter your Meshtastic node ID (shown on your device screen):</p>
+  <input type="text" id="node-id" placeholder="!a1b2c3d4">
+  <button onclick="startChallenge()">Verify</button>
+  <div id="challenge-status"></div>
+</div>
+
 <script>
-  // Poll /api/pin/status every 2s
+  // Path A: poll /api/pin/status every 2s
   // On claim: redirect to /schedule
+
+  // Path B: challenge-response
+  function startChallenge() {
+    fetch("/api/challenge", {method: "POST", body: JSON.stringify({node_id: document.getElementById("node-id").value})})
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById("challenge-status").innerText =
+          "📡 DM sent to your device. Reply: verify " + data.code;
+        // Poll for verification
+        const interval = setInterval(() => {
+          fetch("/api/challenge/" + data.id)
+            .then(r => r.json())
+            .then(d => { if (d.verified) { clearInterval(interval); window.location = "/schedule"; } });
+        }, 2000);
+      });
+  }
 </script>
 ```
 
@@ -384,6 +452,7 @@ auto-cleaned.
 - [ ] Run `setup.sh` on Pi
 - [ ] Copy `schedule.json` to Pi
 - [ ] Test: connect phone to Pi hotspot, DM `sub PIN`, pick acts, verify DM arrives
+- [ ] Test: no-keyboard path — enter node ID, verify challenge DM received, confirm code
 - [ ] Power test: run on battery for 4+ hours
 - [ ] Pack: Pi Nano + case, T3S3, USB cable, power bank
 - [ ] Pack: spare relay nodes (if extending range)
@@ -406,7 +475,8 @@ auto-cleaned.
 | Mesh bridge | T3S3 via USB serial | Owned, serial control, no WiFi dependency |
 | Notification delivery | DM per subscriber | Doesn't pollute primary channel, users chat freely |
 | Subscription | Web UI (PIN-bound) | No typing hex node IDs, works on any phone browser |
-| Auth | PIN shown on captive portal | Short code sent via DM binds device to session |
+| Auth (keyboard) | PIN shown on captive portal, DM `sub PIN` | Short code sent via DM binds device to session |
+| Auth (no keyboard) | Challenge-response: enter node ID → server DMs code → user replies | Proves ownership without typing on the device itself |
 | `unsub` | Deactivates, keeps prefs | Easy to come back |
 | User hardware | Agnostic | No custom firmware needed |
 | Schedule format | Generic JSON | One format, any festival |
