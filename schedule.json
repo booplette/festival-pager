@@ -1,0 +1,10 @@
+[
+  {"act": "Foo Fighters",    "start": "20:00", "stage": "Main"},
+  {"act": "Arctic Monkeys",  "start": "19:15", "stage": "Main"},
+  {"act": "Gorillaz",        "start": "21:30", "stage": "Main"},
+  {"act": "Bicep",           "start": "18:00", "stage": "Dance"},
+  {"act": "Four Tet",        "start": "19:30", "stage": "Dance"},
+  {"act": "Floating Points", "start": "20:30", "stage": "Dance"},
+  {"act": "Mountain Goats",  "start": "17:00", "stage": "Indie"},
+  {"act": "Big Thief",       "start": "18:30", "stage": "Indie"}
+]
