@@ -1,14 +1,15 @@
 # Festival Pager — Product Plan
 
-> Shared mesh notification service. Pi Nano base station + T3S3 USB bridge.
+> Shared mesh notification service. Pi Zero base station + T3S3 USB bridge.
 > Users subscribe to specific acts via web UI. Notifications delivered as Meshtastic DMs.
 > Users can still chat freely on the mesh — the base station only sends DMs.
 
 ## Architecture
 
 ```
-Pi Nano (inside tent, on WiFi hotspot)
-  └─ USB serial ─→ T3S3 (stock Meshtastic firmware, LoRa mesh node)
+Pi Zero (inside tent, USB OTG hub)
+  ├── USB WiFi (Atheros AR9271) — WiFi hotspot + captive portal
+  └── USB serial ─→ T3S3 (stock Meshtastic firmware, LoRa mesh node)
                       ↓
                  LoRa mesh (EU868)
                  ↙      ↓       ↘
@@ -423,20 +424,29 @@ GET  /status              System health
 **Goal:** Everything runs as a single systemd service, auto-starts on boot,
 WiFi hotspot is configured.
 
-**What you'll have at the end:** The Pi Nano boots into hotspot mode, the
+**What you'll have at the end:** The Pi Zero boots into hotspot mode, the
 notification service starts automatically, and the system is "deployable"
 for a festival.
 
 **Files touched:**
 - `/etc/systemd/system/festival-pager.service`
-- `/etc/hostapd/hostapd.conf`
+- `/etc/hostapd/hostapd.conf` — AR9271 on wlan0
 - `/etc/dnsmasq.conf`
+- `/etc/network/interfaces.d/wlan0` — static IP for hotspot
 - `setup.sh` — One-shot setup script
+
+**Hardware setup:**
+```
+Pi Zero
+  └─ microUSB OTG port → OTG hub
+       ├── USB-A ▸ AR9271 WiFi dongle (hotspot, captive portal)
+       └── USB-A ▸ T3S3 (Meshtastic serial bridge, /dev/ttyACM0)
+```
 
 **Setup script (`setup.sh`):**
 ```bash
 #!/bin/bash
-# One-time setup for Pi Nano festival-pager base station
+# One-time setup for Pi Zero festival-pager base station
 
 # Install deps
 pip install meshtastic flask
@@ -474,7 +484,7 @@ auto-cleaned.
 - [ ] Test: connect phone to Pi hotspot, DM `sub PIN`, pick acts, verify DM arrives
 - [ ] Test: no-keyboard path — enter node ID, verify challenge DM received, confirm code
 - [ ] Power test: run on battery for 4+ hours
-- [ ] Pack: Pi Nano + case, T3S3, USB cable, power bank
+- [ ] Pack: Pi Zero + case, OTG hub, AR9271 dongle, T3S3, USB cables, power supply
 - [ ] Pack: spare relay nodes (if extending range)
 
 ---
@@ -491,7 +501,7 @@ auto-cleaned.
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Base station HW | Pi Nano | Owned, low power, full OS |
+| Base station HW | Pi Zero + AR9271 WiFi dongle | Owned, ARMv6, USB OTG hub for WiFi + T3S3 |
 | Mesh bridge | T3S3 via USB serial | Owned, serial control, no WiFi dependency |
 | Notification delivery | DM per subscriber | Doesn't pollute primary channel, users chat freely |
 | Subscription | Web UI (PIN-bound) | No typing hex node IDs, works on any phone browser |
@@ -508,9 +518,11 @@ auto-cleaned.
 
 | Item | Qty | Status | Notes |
 |------|-----|--------|-------|
-| Raspberry Pi Nano | 1 | ✅ Owned | Runs notification service + web UI + hotspot |
+| Raspberry Pi Zero | 1 | ✅ Owned | ARMv6, runs notification service + web UI + hotspot |
+| USB OTG hub | 1 | ⬜ Need | microUSB → 2+ USB-A for WiFi dongle + T3S3 |
+| USB WiFi dongle (Atheros AR9271) | 1 | ✅ Owned | WiFi hotspot + captive portal, in-kernel ath9k_htc driver |
 | LillyGo T3S3 | 1 | ✅ Owned | USB serial bridge to LoRa mesh |
-| USB-C cable (data) | 1 | ⬜ Need | Connects T3S3 to Pi Nano |
+| USB-C to microUSB cable (data) | 1 | ⬜ Need | Connects T3S3 to OTG hub |
 | MicroSD card (32GB+) | 1 | ⬜ Assume | For Pi OS + data |
-| Power bank (5V 3A) | 1 | ⬜ Need | Weekend runtime |
+| Power supply (5V 2A, microUSB) | 1 | ⬜ Need | For the Pi Zero |
 | Relay nodes | N | ⬜ As needed | Range extension |
