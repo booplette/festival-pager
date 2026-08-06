@@ -1,0 +1,15 @@
+# Festival Pager — Static IP for WiFi hotspot interface
+# Copy to: /etc/network/interfaces.d/wlan0
+# (for systems using ifupdown — Raspbian / Raspberry Pi OS legacy)
+#
+# For systems using dhcpcd (Raspberry Pi OS Bookworm+):
+# Copy to: /etc/systemd/network/12-wlan0.network
+# OR pin 10.0.0.1 static in /etc/dhcpcd.conf via:
+#   interface wlan0
+#   static ip_address=10.0.0.1/24
+#   static routers=10.0.0.1
+
+allow-hotplug wlan0
+iface wlan0 inet static
+    address 10.0.0.1/24
+    netmask 255.255.255.0
