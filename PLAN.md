@@ -107,7 +107,7 @@ class Pin:
 class Challenge:
     id: str              # short id for polling
     node_id: str         # claimed node ID "!a1b2c3d4"
-    code: str            # "GOAT42" — short, memorable, easy to read on e-ink
+    code: str            # "GOAT42" — Shambala-themed word + digits, easy to read on e-ink
     created: float       # time.time()
     verified: bool       # True once DM received or code entered on web UI
     session_id: str      # browser session that initiated it
@@ -215,6 +215,26 @@ so it's easy to read from a small e-ink screen. The code expires in 5 minutes.
 The user can either:
   (a) Type the code on the web UI (if the page is still open)
   (b) DM `verify GOAT42` from their device (if they can send one message)
+
+**Whimsical Shambala-themed word list** (code picks a word + appends 2 random digits):
+
+```
+GOAT    BEAN    BASS    BIRD    BUG
+BUZZ    CHARM   CHIME   CLOUD   DANCE
+DEER    DREAM   DRUM    DUNE    FAWN
+FERN    FIELD   FIRE    FLOOD   FLUTE
+FOG     FOX     FROG    GLADE   GLOW
+GNOME   GONG    GROVE    HARE    HUMM
+LEAF    LUCK    MAGIC   MOSS    MOTH
+MYTH    OWL     PEACE   POND    RAVE
+RUNE    SOUL    SPARK   STAR    SUN
+SWIRL   TREE    VIBE    WILD    WISP
+WYRD    YEW
+```
+
+Short words (3–6 chars), easy to read on small e-paper screens, no ambiguity
+between similar letters. Combined with 2 random digits (e.g. `GOAT42`, `FROG07`,
+`WISP83`) for 1M+ unique combinations — no collisions at festival scale.
 
 **Test:**
 ```python
