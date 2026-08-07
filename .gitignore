@@ -21,3 +21,7 @@ meshtastic-firmware/
 # Secrets
 .env
 *.key
+
+# Headless boot credentials (carries a known default password — never commit)
+provision/userconf.txt
+userconf.txt

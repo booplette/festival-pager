@@ -1,15 +1,15 @@
 # Festival Pager — Product Plan
 
-> Shared mesh notification service. Pi Zero base station + T3S3 USB bridge.
+> Shared mesh notification service. Pi 1 B+ base station + T3S3 USB bridge.
 > Users subscribe to specific acts via web UI. Notifications delivered as Meshtastic DMs.
 > Users can still chat freely on the mesh — the base station only sends DMs.
 
 ## Architecture
 
 ```
-Pi Zero (inside tent, USB OTG hub)
-  ├── USB WiFi (Atheros AR9271) — WiFi hotspot + captive portal
-  └── USB serial ─→ T3S3 (stock Meshtastic firmware, LoRa mesh node)
+Pi 1 B+ (inside tent)
+  ├── USB-A ▸ AR9271 WiFi — WiFi hotspot + captive portal
+  └── USB-A ▸ T3S3 (stock Meshtastic firmware, LoRa mesh node)
                       ↓
                  LoRa mesh (EU868)
                  ↙      ↓       ↘
@@ -419,12 +419,55 @@ GET  /status              System health
 
 ---
 
-### Session 6: Systemd Service + WiFi Hotspot
+### Session 6: Pi Base Station Provisioning
+
+**Goal:** Turn a Raspberry Pi 1 B+ into a ready base-station host — OS
+flashed, headless SSH access, hardware assembled, Python deps installed, and a
+verified serial link to the T3S3 Meshtastic node.
+
+**Why this slice before Session 7:** Session 7 (systemd + hotspot) and the Web UI
+deployment assume a running, reachable Pi with the serial bridge wired up.
+Provisioning first means Session 7 is just "install the service files," not
+"also hope the OS boots."
+
+**What you'll have at the end:**
+- Bootable Raspberry Pi OS Lite SD card with headless SSH enabled
+- Pi 1 B+ with AR9271 WiFi dongle and T3S3 plugged into USB ports
+- Python venv with `meshtastic` + `flask` installed
+- Confirmed `/dev/ttyACM0` link to the T3S3 returning node info
+
+**Files touched:**
+- `docs/hardware/pi-assembly.md` — physical build + port map
+
+**Steps:**
+1. ✅ OS flashed — Raspberry Pi OS Lite (Bullseye armhf) on SD card, booted.
+2. ✅ Headless SSH — `pi` user with known password, `festival-pager` hostname.
+3. Run `sudo apt update && sudo apt full-upgrade -y` (fresh flash, needs updates).
+4. Plug T3S3 into USB port, confirm `/dev/ttyACM0` appears. `pi` already in `dialout` group.
+5. `sudo apt install python3-pip -y`, create venv `/home/pi/festival-pager/venv`, `pip install meshtastic flask`.
+6. Document hardware: Pi 1 B+ → USB ports → AR9271 (wlan0) + T3S3 (ttyACM0). Write `docs/hardware/pi-assembly.md`.
+7. Verify: `meshtastic --port /dev/ttyACM0 --info` returns node info (EU868 + working serial bridge).
+
+**Test:**
+```bash
+ssh pi@festival-pager
+ls -l /dev/ttyACM0            # should exist with T3S3 plugged in
+/home/pi/festival-pager/venv/bin/python -c "import meshtastic, flask; print('deps ok')"
+meshtastic --port /dev/ttyACM0 --info | grep -i "firmware\|region"
+```
+
+**Handoff to Session 7:** Pi is reachable over SSH, deps present, T3S3 on
+`ttyACM0`. Session 7 adds the systemd unit + hotspot so it auto-runs headless
+at the festival.
+
+---
+
+### Session 7: Systemd Service + WiFi Hotspot
 
 **Goal:** Everything runs as a single systemd service, auto-starts on boot,
 WiFi hotspot is configured.
 
-**What you'll have at the end:** The Pi Zero boots into hotspot mode, the
+**What you'll have at the end:** The Pi 1 B+ boots into hotspot mode, the
 notification service starts automatically, and the system is "deployable"
 for a festival.
 
@@ -437,19 +480,17 @@ for a festival.
 
 **Hardware setup:**
 ```
-Pi Zero
-  └─ microUSB OTG port → OTG hub
-       ├── USB-A ▸ AR9271 WiFi dongle (hotspot, captive portal)
-       └── USB-A ▸ T3S3 (Meshtastic serial bridge, /dev/ttyACM0)
+Pi 1 B+
+  ├── USB-A ▸ AR9271 WiFi dongle (hotspot, captive portal)
+  └── USB-A ▸ T3S3 (Meshtastic serial bridge, /dev/ttyACM0)
 ```
 
 **Setup script (`setup.sh`):**
 ```bash
 #!/bin/bash
-# One-time setup for Pi Zero festival-pager base station
+# One-time setup for Pi 1 B+ festival-pager base station
 
-# Install deps
-pip install meshtastic flask
+# (deps already installed in venv during Session 6 provisioning)
 
 # Copy service file
 sudo cp festival-pager.service /etc/systemd/system/
@@ -468,7 +509,7 @@ auto-cleaned.
 
 ---
 
-### Session 7: Festival Prep Checklist
+### Session 8: Festival Prep Checklist
 
 **Goal:** A document to run through before deploying to a festival.
 
@@ -478,13 +519,13 @@ auto-cleaned.
 **Checklist:**
 - [ ] Flash T3S3 with stock Meshtastic firmware (EU868)
 - [ ] Configure T3S3: region EU868, no WiFi (serial only)
-- [ ] Flash SD card with Raspberry Pi OS Lite
-- [ ] Run `setup.sh` on Pi
+- [ ] Verify Pi provisioned (Session 6): SSH in, venv + deps present, `ttyACM0` link to T3S3 confirmed
+- [ ] Run `setup.sh` on Pi (installs service + hotspot — deps already in venv)
 - [ ] Copy `schedule.json` to Pi
 - [ ] Test: connect phone to Pi hotspot, DM `sub PIN`, pick acts, verify DM arrives
 - [ ] Test: no-keyboard path — enter node ID, verify challenge DM received, confirm code
 - [ ] Power test: run on battery for 4+ hours
-- [ ] Pack: Pi Zero + case, OTG hub, AR9271 dongle, T3S3, USB cables, power supply
+- [ ] Pack: Pi 1 B+ + case, AR9271 dongle, T3S3, Ethernet cable, USB cables, power supply
 - [ ] Pack: spare relay nodes (if extending range)
 
 ---
@@ -501,7 +542,7 @@ auto-cleaned.
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Base station HW | Pi Zero + AR9271 WiFi dongle | Owned, ARMv6, USB OTG hub for WiFi + T3S3 |
+| Base station HW | Pi 1 B+ + AR9271 WiFi dongle | Owned, ARMv6, 4x USB ports for WiFi + T3S3 |
 | Mesh bridge | T3S3 via USB serial | Owned, serial control, no WiFi dependency |
 | Notification delivery | DM per subscriber | Doesn't pollute primary channel, users chat freely |
 | Subscription | Web UI (PIN-bound) | No typing hex node IDs, works on any phone browser |
@@ -518,11 +559,10 @@ auto-cleaned.
 
 | Item | Qty | Status | Notes |
 |------|-----|--------|-------|
-| Raspberry Pi Zero | 1 | ✅ Owned | ARMv6, runs notification service + web UI + hotspot |
-| USB OTG hub | 1 | ⬜ Need | microUSB → 2+ USB-A for WiFi dongle + T3S3 |
+| Raspberry Pi 1 B+ | 1 | ✅ Owned | ARMv6, 4x USB ports, runs notification service + web UI + hotspot |
 | USB WiFi dongle (Atheros AR9271) | 1 | ✅ Owned | WiFi hotspot + captive portal, in-kernel ath9k_htc driver |
 | LillyGo T3S3 | 1 | ✅ Owned | USB serial bridge to LoRa mesh |
-| USB-C to microUSB cable (data) | 1 | ⬜ Need | Connects T3S3 to OTG hub |
-| MicroSD card (32GB+) | 1 | ⬜ Assume | For Pi OS + data |
-| Power supply (5V 2A, microUSB) | 1 | ⬜ Need | For the Pi Zero |
+| MicroSD card (8GB+) | 1 | ✅ Have | For Pi OS + data |
+| Power supply (5V 2A, microUSB) | 1 | ⬜ Need | For the Pi 1 B+ |
+| Ethernet cable | 1 | ⬜ Need | Handy for initial setup/troubleshooting |
 | Relay nodes | N | ⬜ As needed | Range extension |

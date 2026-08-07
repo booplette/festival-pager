@@ -1,78 +1,63 @@
 # STATUS.md — Festival Pager
 
-## Overview
-LoRa mesh notification system for music festivals. Phone at camp pushes act-start notifications to a wrist-worn e-paper pager via Meshtastic LoRa mesh relays.
+**Last updated:** 2026-08-07
 
-## URLs
-- Meshtastic flasher: https://flasher.meshtastic.org/
-- Meshtastic docs: https://meshtastic.org/docs/
-- Meshtastic firmware repo: https://github.com/meshtastic/firmware
-- Heltec Wireless Paper manual: (PDF attached in chat)
+## Overview
+LoRa mesh notification system for music festivals. Pi 1 B+ base station with
+AR9271 WiFi hotspot + T3S3 serial bridge sends Meshtastic DMs to subscribers
+when their selected acts are about to start.
 
 ## Architecture
-- **Camp node:** Heltec Wireless Paper (ESP32-S3 + SX1262, EU868) — WiFi enabled, connects to phone's hotspot, receives HTTP API messages
-- **Relay node(s):** LillyGo T3S3 (ESP32-S3 + SX1262, EU868) — LoRa mesh relay, extends range into festival
-- **Pager:** Heltec Wireless Paper (ESP32-S3 + SX1262, EU868) — e-paper display, wrist-worn, LiPo powered
-- **Phone:** Runs `notifier.py` script, watches `schedule.json`, pushes messages via Meshtastic HTTP API to camp node
-- **Protocol:** Meshtastic LoRa mesh (EU868), protobuf messages, mesh routing automatic
-
-## File Structure
 ```
-festival-pager/
-  PLAN.md          # Implementation plan (10 tasks)
-  STATUS.md        # This file
-  notifier.py      # Python notification script
-  schedule.json    # Example festival schedule
-  case/            # 3D printed case designs (STL files)
+Pi 1 B+ (inside tent)
+  ├── USB-A ▸ AR9271 WiFi — hotspot + captive portal (10.0.0.1)
+  └── USB-A ▸ T3S3 — Meshtastic serial bridge (LoRa mesh, EU868)
+                  ↓
+            LoRa mesh DMs to subscribers
 ```
 
-## Hardware State
-- **LillyGo T3S3:** Owned, current firmware unknown, to be flashed with Meshtastic
-- **LillyGo T-Display LoRa TFT:** Owned, current firmware unknown, optional relay (battery limited)
-- **Heltec Wireless Paper HF:** Not yet purchased (~£25-35 on Amazon/AliExpress)
-- **LiPo battery:** Not yet purchased (3.7V 500mAh, JST-PH connector)
-- **3D printed case:** Not yet designed
+## Sessions Completed
 
-## Deploy Workflow
-1. Flash all devices with Meshtastic (EU868 region) via web flasher
-2. Configure channels and WiFi on camp node via Meshtastic app
-3. Run `notifier.py` on phone/laptop at camp (connects to camp node via WiFi)
-4. Position relay nodes at strategic festival locations
-5. Pager receives messages automatically via LoRa mesh
+### Session 6 ✅ Pi Base Station Provisioning
+- Pi 1 B+ flashed, booted, SSH accessible at `festival-pager.local`
+- OS updated, kernel 6.18.39 running
+- Python venv at `/home/pi/festival-pager/venv/` with Flask 3.1.3 + Meshtastic 2.7.11
+- T3S3 confirmed at `/dev/ttyACM0`, pi in dialout group
+- Assembly docs at `docs/hardware/pi-assembly.md`
 
-## Outstanding Items
-- [ ] Purchase Heltec Wireless Paper HF (EU868)
-- [ ] Purchase LiPo battery 3.7V 500mAh
-- [ ] Flash Meshtastic onto Wireless Paper (pager node)
-- [ ] Flash Meshtastic onto T3S3 (relay node)
-- [ ] Test mesh communication between devices
-- [ ] Write and test notifier.py with real Meshtastic HTTP API
-- [ ] Get festival schedule data (JSON format)
-- [ ] Design and 3D print wrist case
-- [ ] Assemble and test end-to-end at a local event
+## Session Status
 
-## Gotchas
-- Meshtastic user text payload limited to ~57 bytes — act names must be truncated
-- Message delivery is asynchronous (10-30 second delay typical)
-- The python-meshtastic library has macOS dependency issues (pyobjc) — may need Docker/venv workaround
-- Both devices must be on the SAME Meshtastic channel (channel hash must match)
-- EU868 region must be set on ALL devices (firmware flash time)
-- The camp node needs WiFi; the pager runs LoRa-only (WiFi disabled)
+| # | Session | Status |
+|---|---------|--------|
+| 1 | Data Model + Schedule | models.py written, needs schedule.json + commit |
+| 2 | Meshtastic Connection + DM Listener | Not started |
+| 3 | DM Command Parser | Not started |
+| 4 | Notifier Loop | Not started |
+| 5 | Web UI (Captive Portal + Schedule Picker) | Not started |
+| 6 | Pi Base Station Provisioning | ✅ Complete |
+| 7 | Systemd Service + WiFi Hotspot | Not started |
+| 8 | Festival Prep Checklist | Not started |
 
-## Commands to Continue Development
+## Key Paths
+
+| Resource | Path |
+|----------|------|
+| Repo | `~/Projects/festival-pager/` (branch `feat/architecture-v2`) |
+| Plan | `PLAN.md` |
+| Assembly | `docs/hardware/pi-assembly.md` |
+| Data model | `models.py` |
+| Provision scripts | `provision/` |
+
+## Pi Access
+- **SSH:** `pi@festival-pager.local` / `pi@192.168.1.150` (password: festival-pager)
+- **Kernel:** 6.18.39+rpt-rpi-v6 (ARMv6)
+- **T3S3:** `/dev/ttyACM0`
+
+## Commands to Continue (Next: Session 7)
 ```bash
-cd ~/festival-pager
+# On the Pi:
+ssh pi@festival-pager.local
 
-# Write the notifier script
-# (requires meshtastic library — install with: pip3 install meshtastic)
-# Note: macOS may need --no-deps workaround for pyobjc
-
-# Flash devices (use web flasher instead of CLI)
-open "https://flasher.meshtastic.org/"
-
-# Test after flashing
-meshtastic scan  # list nearby nodes
-meshtastic send "test"  # send a test message
+# Create systemd service + hostapd hotspot config
+# See PLAN.md Session 7 for details
 ```
-
-  config.json      # Meshtastic node URL, schedule path, intervals
