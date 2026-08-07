@@ -61,31 +61,68 @@ Pi 1 B+ (inside tent)
 | `deploy/run.sh` | Service wrapper: starts notifier (bg) + web UI (fg), cleanup on exit |
 | `setup.sh` | One-shot Pi setup: apt deps, venv, copy configs, enable services, data dir |
 
-## Commands to Continue (Next: Session 8)
+## Session 7 — Deploy Plan (Ethernet Required)
 
-```bash
-# On the Pi:
-ssh pi@festival-pager.local
-cd /home/pi/festival-pager
-chmod +x setup.sh
-sudo ./setup.sh  # installs service + hotspot
+**CRITICAL:** `setup.sh` reconfigures wlan0 from WiFi client (station) to AP
+mode (hotspot). This kills the current WiFi SSH session at 192.168.1.150.
 
-# After reboot:
-sudo systemctl status festival-pager
-# Connect to 'Festival Pager' WiFi from phone
-# Visit http://10.0.0.1
-```
+**Before deploying, plug an Ethernet cable into the Pi's RJ45 port.** The Pi
+will get a new IP via DHCP on eth0 — use that IP for SSH during/after deploy.
 
-## Pi Access
-- **SSH:** `pi@festival-pager.local` / `pi@192.168.1.150` (password: festival-pager)
+### Step-by-step (tomorrow)
+
+1. **Boot Pi with Ethernet plugged in** → check router DHCP table for new IP
+   (or scan: `nmap -sn 192.168.1.0/24` / `arp -a | grep -i b8:27:eb`)
+
+2. **SSH in via Ethernet:**
+   ```bash
+   ssh pi@<new-eth-ip>  # or pi@festival-pager.local if mDNS works on eth0
+   ```
+
+3. **Clone the repo on the Pi (if not already):**
+   ```bash
+   cd /home/pi
+   git clone https://github.com/booplette/festival-pager.git
+   cd festival-pager
+   ```
+
+4. **Run setup.sh:**
+   ```bash
+   chmod +x setup.sh
+   sudo ./setup.sh
+   ```
+
+5. **Before rebooting — test the hotspot incrementally** (WiFi client stays alive
+   until reboot):
+   ```bash
+   sudo systemctl start hostapd
+   sudo systemctl start dnsmasq
+   ```
+   Connect phone to 'Festival Pager' WiFi → http://10.0.0.1
+
+6. **Reboot:**
+   ```bash
+   sudo reboot
+   ```
+
+7. **After reboot** — SSH via Ethernet IP (or connect to 'Festival Pager' hotspot
+   and SSH to 10.0.0.1):
+   ```bash
+   ssh pi@<eth-ip>
+   sudo systemctl status festival-pager
+   ```
+
+### Post-deploy access options
+
+| Method | Address | Works? |
+|--------|---------|--------|
+| Ethernet (eth0) | DHCP from router (check DHCP table) | ✅ Always |
+| WiFi hotspot (wlan0 AP) | 10.0.0.1 | ✅ Connect to 'Festival Pager' first |
+| WiFi client (wlan0 STA) | 192.168.1.150 | ❌ Killed by setup.sh |
+| `festival-pager.local` | mDNS | ⚠️ Only on the network eth0 gets a DHCP lease from |
+
+## Pi Access (Current — WiFi client, will change)
+- **SSH:** `pi@festival-pager.local` / `pi@192.168.1.150` — **will stop working after setup.sh reboot**
+- **Post-deploy SSH:** via Ethernet DHCP IP, or connect to hotspot → 10.0.0.1
 - **Kernel:** 6.18.39+rpt-rpi-v6 (ARMv6)
 - **T3S3:** `/dev/ttyACM0`
-
-## Commands to Continue (Next: Session 7)
-```bash
-# On the Pi:
-ssh pi@festival-pager.local
-
-# Create systemd service + hostapd hotspot config
-# See PLAN.md Session 7 for details
-```
