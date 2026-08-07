@@ -35,7 +35,7 @@ Pi 1 B+ (inside tent)
 | 4 | Notifier Loop | Not started |
 | 5 | Web UI (Captive Portal + Schedule Picker) | Not started |
 | 6 | Pi Base Station Provisioning | ✅ Complete |
-| 7 | Systemd Service + WiFi Hotspot | Not started |
+| 7 | Systemd Service + WiFi Hotspot | ✅ Complete |
 | 8 | Festival Prep Checklist | Not started |
 
 ## Key Paths
@@ -47,6 +47,34 @@ Pi 1 B+ (inside tent)
 | Assembly | `docs/hardware/pi-assembly.md` |
 | Data model | `models.py` |
 | Provision scripts | `provision/` |
+| Deploy configs | `deploy/` |
+| Setup script | `setup.sh` |
+
+## Session 7 — Files Created
+
+| File | Purpose |
+|------|---------|
+| `deploy/festival-pager.service` | systemd unit → runs run.sh, depends on hostapd + dnsmasq |
+| `deploy/hostapd.conf` | AR9271 open hotspot, SSID 'Festival Pager', GB channel 6 |
+| `deploy/dnsmasq.conf` | DHCP 10.0.0.10-100, DNS captive (# → 10.0.0.1) |
+| `deploy/wlan0.network` | Static IP 10.0.0.1/24 for wlan0 |
+| `deploy/run.sh` | Service wrapper: starts notifier (bg) + web UI (fg), cleanup on exit |
+| `setup.sh` | One-shot Pi setup: apt deps, venv, copy configs, enable services, data dir |
+
+## Commands to Continue (Next: Session 8)
+
+```bash
+# On the Pi:
+ssh pi@festival-pager.local
+cd /home/pi/festival-pager
+chmod +x setup.sh
+sudo ./setup.sh  # installs service + hotspot
+
+# After reboot:
+sudo systemctl status festival-pager
+# Connect to 'Festival Pager' WiFi from phone
+# Visit http://10.0.0.1
+```
 
 ## Pi Access
 - **SSH:** `pi@festival-pager.local` / `pi@192.168.1.150` (password: festival-pager)

@@ -1,0 +1,20 @@
+# Festival Pager — Static IP for WiFi hotspot interface
+# Pi 1 B+ — AR9271 on wlan0
+#
+# For systems using dhcpcd (Raspberry Pi OS Lite default):
+#   interface wlan0
+#   static ip_address=10.0.0.1/24
+#   static routers=10.0.0.1
+#   nohook wpa_supplicant
+#
+# For systemd-networkd (Bookworm+):
+# Copy this file to /etc/systemd/network/12-wlan0.network
+#
+# For legacy ifupdown:
+# Copy this file to /etc/network/interfaces.d/wlan0
+
+[Match]
+Name=wlan0
+
+[Network]
+Address=10.0.0.1/24
